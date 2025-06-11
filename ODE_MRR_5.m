@@ -79,7 +79,23 @@ plot(time*1e9, y_ode45,    'k','LineWidth',2); hold on;
 plot(time*1e9, y_mrr,      'r--','LineWidth',2);
 xlabel('Time [ns]'); ylabel('y(t)');
 legend('ODE45','MRR','Location','Southeast');
-title(sprintf('%d^{th}-order: ODE45 vs. MRR',order));
+
+% Determine ordinal suffix
+if mod(order, 100) >= 11 && mod(order, 100) <= 13
+    suffix = 'th';
+else
+    switch mod(order, 10)
+        case 1
+            suffix = 'st';
+        case 2
+            suffix = 'nd';
+        case 3
+            suffix = 'rd';
+        otherwise
+            suffix = 'th';
+    end
+end
+title(sprintf('%d^{%s}-order: ODE45 vs. MRR', order, suffix));
 grid on;
 
 % 2) Ideal‐TF vs MRR TF
