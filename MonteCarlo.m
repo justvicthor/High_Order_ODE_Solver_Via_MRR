@@ -33,7 +33,7 @@ gain_samples = zeros(num_monte_carlo, 1);
 
 % Define gain measurement time window. We will average the gain over this window.
 % Here we assume that the gain settles between 60 ns and 100 ns.
-time_indices = find(time_vector >= 60e-9 & time_vector <= 100e-9);
+time_indices = find(time_vector >= 50e-9 & time_vector <= 60e-9);
 
 % Preallocate storage for full distribution
 time_outputs = zeros(num_monte_carlo, num_points);
@@ -91,6 +91,5 @@ for run_idx = 1:num_monte_carlo
     power_envelope_min = min(power_envelope_min, normalized_power);
     time_envelope_max = max(time_envelope_max, time_response);
     time_envelope_min = min(time_envelope_min, time_response);
-end
-
+end 
 end

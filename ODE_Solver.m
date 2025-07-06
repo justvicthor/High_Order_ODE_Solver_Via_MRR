@@ -3,7 +3,7 @@
 close all; clear; clc;
 
 %% ---------------- User parameters ----------------
-order    = 3;                  % 1, 2, or 3
+order    = 1;                  % 1, 2, or 3
 k        = [0.5, 0.3, 0.2];    % [ns^-1] per stage
 A        = 1e9;                % ns → s scaling
 r_tolerances = [0]; %, 0.01, 0.03, 0.05]; % ± coupling tolerance (%)
@@ -14,10 +14,10 @@ R     = [5e-3, 4e-3, 3e-3];    % ring radii [m]
 neff  = 1.5;                   % effective index
 
 %% ---------------- Input signal -------------------
-C        = 4;                  % step amplitude
-%x_fun = @(t) C * (t > 0);      % unit-step of amplitude C at t=0
-f0 = 2e9;                     % sine frequency [Hz]
-x_fun = @(t) C * sin(2*pi*f0*t);
+C        = 40;                  % step amplitude
+x_fun = @(t) C * (t > 0);      % unit-step of amplitude C at t=0
+f0 = 10e9;                     % sine frequency [Hz]
+%x_fun = @(t) C * sin(2*pi*f0*t);
 
 %% ---------------- Static constants ---------
 c     = 3e8;                   % speed of light [m/s]
@@ -95,8 +95,8 @@ y_mrr = real(ifft(fftshift(X .* H_mrr)));
 [H_ode_Df_GHz, H_ode_dB] = normalize_power_db(Df, H_ode);
 [H_mrr_Df_GHz, H_mrr_dB] = normalize_power_db(Df, H_mrr);
 
-figure('Name', 'Frequency-Domain Transfer Function');
-title('Ideal ODE vs. Cascaded MRR Transfer Function');
+figure('Name', 'Frequency-Domain');
+
 % Plot ideal ODE-based transfer function
 plot(H_ode_Df_GHz, H_ode_dB, 'b', 'LineWidth', 1.4); 
 hold on;
@@ -105,6 +105,8 @@ hold on;
 plot(H_mrr_Df_GHz, H_mrr_dB, 'r', 'LineWidth', 1.4);
 
 %Plot the signal bandwidth
+plot(Df / 1e9, P_dB, 'g', 'LineWidth', 1.4);
+yline(-3, 'r--', '-3 dB', 'LabelHorizontalAlignment', 'left', 'LabelVerticalAlignment', 'bottom');
 % Bandwidth limits
 min_f = min(f_bw);
 max_f = max(f_bw);
@@ -127,9 +129,15 @@ xline(max(f_bw)/1e9, 'k--');
 % Axis labels and styling
 xlabel('Frequency [GHz]');
 ylabel('Magnitude [dB]');
-title('Frequency-Domain Transfer Functions');
 
-legend('Ideal ODE TF', 'Cascaded MRR TF', 'Location', 'Best');
+title('Frequency-Domain Transfer Functions');
+legend({ ...
+    'Ideal ODE TF', ...
+    'Cascaded MRR TF', ...
+    'Input Signal Spectrum', ...
+    '-3 dB Reference', ...
+    '3 dB Bandwidth Region' ...
+}, 'Location', 'best');
 grid on;
 
 xlim([-15, 15]);
@@ -175,91 +183,97 @@ for idx = 1:length(r_tolerances)
     fprintf('   Std  error    =  ±%.2f %%\n\n', std_err);
 end
 
-%% ---------------- Percentile envelopes ----------------
-p_low  =  5;   p_mid = 50;   p_high = 95;
-YL = prctile(y_all_all{1}, p_low,  1);
-YM = prctile(y_all_all{1}, p_mid,  1);
-YH = prctile(y_all_all{1}, p_high, 1);
-FL = prctile(H_all_all{1}, p_low,  1);
-FM = prctile(H_all_all{1}, p_mid,  1);
-FH = prctile(H_all_all{1}, p_high, 1);
-
-%% ---------------- Plot percentile envelopes ------------
-figure('Name','Percentile Envelopes & Density');
-
-% Frequency-domain envelope
-subplot(3,1,1);
-[H_ode_Df_GHz, H_ode_dB] = normalize_power_db(Df, H_ode);
-[H_mrr_Df_GHz, H_mrr_dB] = normalize_power_db(Df, H_mrr);
-plot(H_ode_Df_GHz, H_ode_dB,'b','LineWidth',1.4); hold on;
-plot(H_mrr_Df_GHz, H_mrr_dB, 'r','LineWidth',1.4); hold on;
-
-fill([Df/1e9, fliplr(Df/1e9)], [10*log10(FH), fliplr(10*log10(FL))], ...
-     'r','FaceAlpha',0.2,'EdgeColor','none');
-plot(Df/1e9, 10*log10(FM), 'r--', 'LineWidth',1);
-xlabel('Frequency [GHz]'); ylabel('Magnitude [dB]');
-legend('Ideal ODE TF','Nominal','5–95% envelope','Median','Location','SouthWest');
-xlim([-15 15]); ylim([-30 0]); grid on;
-
-% Time-domain envelope
-subplot(3,1,2);
-plot(time*1e9, y_ode45, 'k','LineWidth',1.5); hold on;
-plot(time*1e9, YM,      'r--','LineWidth',1);
-fill([time*1e9, fliplr(time*1e9)], [YH, fliplr(YL)], ...
-     'r','FaceAlpha',0.2,'EdgeColor','none');
-xlabel('Time [ns]'); ylabel('y(t)');
-legend('ODE45','Median MC','5–95% envelope','Location','SouthEast');
-xlim([0 tmax*1e9]); grid on;
-
-% 2D density heat-map (time vs. amplitude)
-subplot(3,1,3);
-edges = linspace(min(y_all(:)),max(y_all(:)),100);
-pd = zeros(length(edges)-1, N);
-for i = 1:N
-    counts = histcounts(y_all(:,i), edges);
-    pd(:,i) = counts / N;
+for idx = 1:length(r_tolerances)
+    %% ---------------- Percentile envelopes ----------------
+    p_low  =  5;   p_mid = 50;   p_high = 95;
+    YL = prctile(y_all_all{idx}, p_low,  1);
+    YM = prctile(y_all_all{idx}, p_mid,  1);
+    YH = prctile(y_all_all{idx}, p_high, 1);
+    FL = prctile(H_all_all{idx}, p_low,  1);
+    FM = prctile(H_all_all{idx}, p_mid,  1);
+    FH = prctile(H_all_all{idx}, p_high, 1);
+    
+    %% ---------------- Plot percentile envelopes ------------
+    figure('Name', sprintf('Percentile Envelopes & Density - Coupling Tolerance: %.2f%%', r_tolerances(idx)*100));
+    
+    % Frequency-domain envelope
+    subplot(3,1,1);
+    [H_ode_Df_GHz, H_ode_dB] = normalize_power_db(Df, H_ode);
+    [H_mrr_Df_GHz, H_mrr_dB] = normalize_power_db(Df, H_mrr);
+    plot(H_ode_Df_GHz, H_ode_dB,'b','LineWidth',1.4); hold on;
+    plot(H_mrr_Df_GHz, H_mrr_dB, 'r','LineWidth',1.4); hold on;
+    
+    fill([Df/1e9, fliplr(Df/1e9)], [10*log10(FH), fliplr(10*log10(FL))], ...
+         'r','FaceAlpha',0.2,'EdgeColor','none');
+    plot(Df/1e9, 10*log10(FM), 'r--', 'LineWidth',1);
+    xlabel('Frequency [GHz]'); ylabel('Magnitude [dB]');
+    legend('Ideal ODE TF','Nominal','5–95% envelope','Median','Location','SouthWest');
+    xlim([-15 15]); ylim([-30 0]); grid on;
+    
+    % Time-domain envelope
+    subplot(3,1,2);
+    plot(time*1e9, y_ode45, 'k','LineWidth',1.5); hold on;
+    plot(time*1e9, YM,      'r--','LineWidth',1);
+    fill([time*1e9, fliplr(time*1e9)], [YH, fliplr(YL)], ...
+         'r','FaceAlpha',0.2,'EdgeColor','none');
+    xlabel('Time [ns]'); ylabel('y(t)');
+    legend('ODE45','Median MC','5–95% envelope','Location','SouthEast');
+    xlim([0 tmax*1e9]); grid on;
+    
+    % 2D density heat-map (time vs. amplitude)
+    subplot(3,1,3);
+    edges = linspace(min(y_all_all{idx}(:)),max(y_all_all{idx}(:)),100);
+    pd = zeros(length(edges)-1, N);
+    for i = 1:N
+        counts = histcounts(y_all_all{idx}(:,i), edges);
+        pd(:,i) = counts / N;
+    end
+    imagesc(time*1e9, edges(1:end-1), pd);
+    axis xy; hold on;
+    plot(time*1e9, y_ode45, 'w--','LineWidth',1.5);  % ODE45 guideline
+    xlabel('Time [ns]'); ylabel('y amplitude');
+    title('Probability density of y(t) with ODE45 guideline');
+    xlim([0 tmax*1e9]); grid on;
+    colorbar;
 end
-imagesc(time*1e9, edges(1:end-1), pd);
-axis xy; hold on;
-plot(time*1e9, y_ode45, 'w--','LineWidth',1.5);  % ODE45 guideline
-xlabel('Time [ns]'); ylabel('y amplitude');
-title('Probability density of y(t) with ODE45 guideline');
-xlim([0 tmax*1e9]); grid on;
-colorbar;
 
 %% ---------------- Plot different montecarlo analysis ----------------
 figure('Name','Mean error vs. coupling tolerance');
 
-mean_errors = zeros(length(r_tolerances), 1);
-ci_half_widths = zeros(length(r_tolerances), 1);  % Confidence interval half-widths
+mse_errors = zeros(length(r_tolerances), 1);
+rmsd = zeros(length(r_tolerances), 1);
+ci_half_widths = zeros(length(r_tolerances), 1);
 
-t_alpha = 0.05;  % 95% confidence
+t_alpha = 0.05;  % 95% confidence level
 
 for idx = 1:length(r_tolerances)
-    % Relative error in %
-    rel_err = (gain_monte_carlo_all{idx} - gain_ideal) / gain_ideal * 100;
+    % Compute relative error in percentage
+    rel_err_percent = (gain_monte_carlo_all{idx} - gain_ideal) / gain_ideal * 100;
 
-    % Mean error
-    mean_errors(idx) = mean(rel_err);
+    % Mean Squared Error (in %²)
+    mse_errors(idx) = mean(rel_err_percent.^2);
 
-    % Standard error
-    N = length(gain_monte_carlo_all{idx});
-    sem = std(rel_err) / sqrt(N);
+    % Root Mean Squared Error (in %)
+    rmsd(idx) = sqrt(mse_errors(idx));
+
+    % Standard error of the squared relative error
+    N = length(rel_err_percent);
+    sem = std(rel_err_percent.^2) / sqrt(N);
 
     % t-value for confidence interval
     tval = tinv(1 - t_alpha/2, N - 1);
 
-    % Half-width of CI
+    % Half-width of CI for MSE
     ci_half_widths(idx) = tval * sem;
 end
 
 % Plot with error bars
-errorbar(r_tolerances *100, mean_errors, ci_half_widths, 'o-', ...
+errorbar(r_tolerances *100, rmsd, ci_half_widths, 'o-', ...
     'LineWidth', 1.5, 'MarkerSize', 6, 'Color', [0.2 0.6 0.8]);
 
 xlabel('Coupling Tolerance (%)');
-ylabel('Mean Gain Error (%)');
-title('Mean Gain Error vs. Coupling Tolerance');
+ylabel('Root Mean Square Error (%)');
+title('Mean Square Error vs. Coupling Tolerance');
 grid on;
 
 %% ---------------- helper function -----------------------------------
@@ -292,3 +306,4 @@ function [f_GHz, power_dB] = normalize_power_db(freq_Hz, H)
     % Convert to power in dB
     power_dB = 10 * log10(H_norm .^ 2);
 end
+
