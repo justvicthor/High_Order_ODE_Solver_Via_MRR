@@ -15,9 +15,9 @@ neff  = 1.5;                   % effective index
 
 %% ---------------- Input signal -------------------
 C        = 4;                  % step amplitude
-x_fun = @(t) C * (t > 0);      % unit-step of amplitude C at t=0
-f0 = 5e10;                     % sine frequency [Hz]
-%x_fun = @(t) C * sin(2*pi*f0*t);
+%x_fun = @(t) C * (t > 0);      % unit-step of amplitude C at t=0
+f0 = 2e9;                     % sine frequency [Hz]
+x_fun = @(t) C * sin(2*pi*f0*t);
 
 %% ---------------- Static constants ---------
 c     = 3e8;                   % speed of light [m/s]
@@ -49,7 +49,23 @@ Df   = linspace(-1/(2*dt), 1/(2*dt), N);
 % Evaluate input signal
 in_t = x_fun(time);
 % FFT of input signal
-IN   = fftshift(fft(in_t));
+X   = fftshift(fft(in_t));
+
+P = abs(X).^2;        % Power spectrum
+
+% Normalize to peak power
+P = P / max(P);
+
+% Convert to dB scale
+P_dB = 10 * log10(P);
+
+% Find frequencies above -3 dB threshold
+threshold_dB = -3;
+mask = P_dB >= threshold_dB;
+
+% Extract frequency range above -3 dB
+f_bw = Df(mask);
+bandwidth_Hz = max(f_bw) - min(f_bw);
 
 %% ---------------- State-space ODE45 --------------
 ss_fun = @(t,y) ss_odes(t, y, k(1:order), A, x_fun(t));
@@ -62,7 +78,7 @@ H_ode = ones(1,N);
 for i = 1:order
     H_ode = H_ode .* ((1/k(i)) .* (1/tau_c(i) ./ (1/tau_c(i) + 1j*2*pi*Df)));
 end
-y_ode_tf = real(ifft(fftshift(IN .* H_ode)));
+y_ode_tf = real(ifft(fftshift(X .* H_ode)));
 
 %% ---------------- Cascaded MRR TF ----------------
 beta  = 2*pi*Df / (c/neff);
@@ -72,7 +88,7 @@ for i = 1:order
              (1 - r(i)^2.*alpha(i).*exp(-1j*beta*L(i))));
     H_mrr  = H_mrr .* H_drop;
 end
-y_mrr = real(ifft(fftshift(IN .* H_mrr)));
+y_mrr = real(ifft(fftshift(X .* H_mrr)));
 
 %% ---------------- Nominal plots ------------------
 % Normalize and convert to dB
@@ -87,6 +103,26 @@ hold on;
 
 % Plot cascaded MRR transfer function
 plot(H_mrr_Df_GHz, H_mrr_dB, 'r', 'LineWidth', 1.4);
+
+%Plot the signal bandwidth
+% Bandwidth limits
+min_f = min(f_bw);
+max_f = max(f_bw);
+% Compute bandwidth in GHz
+bw_GHz = (max_f - min_f)/1e9;
+
+% Compute center of the shaded area
+center_f = (min_f + max_f)/2 / 1e9;  % in GHz
+text_y = -120;                         % vertical position for the label
+
+% Add text label
+text(center_f, text_y, ['B = ' num2str(bw_GHz, '%.2f') ' GHz'], ...
+     'HorizontalAlignment', 'center', 'FontSize', 10, 'FontWeight', 'bold');
+fill_x = [min_f max_f max_f min_f]/1e9;       % GHz for plotting
+fill_y = [-200 -200 0 0];
+fill(fill_x, fill_y, [0.2 0.4 1], 'FaceAlpha', 0.3, 'EdgeColor', 'none');
+xline(min(f_bw)/1e9, 'k--');
+xline(max(f_bw)/1e9, 'k--');
 
 % Axis labels and styling
 xlabel('Frequency [GHz]');
@@ -124,7 +160,7 @@ y_all_all      = cell(length(r_tolerances),1);
 for idx = 1:length(r_tolerances)
     tol_r = r_tolerances(idx);
     [gain_monte_carlo, H_all, y_all, H_env_max, H_env_min, y_env_max, y_env_min] = ...
-        MonteCarlo(N_monte_carlo, k, order, time, N, r, tol_r, alpha, loss_tolerance, neff, detuning_tolerance, Df, c, L, IN, H_mrr);
+        MonteCarlo(N_monte_carlo, k, order, time, N, r, tol_r, alpha, loss_tolerance, neff, detuning_tolerance, Df, c, L, X, H_mrr);
     gain_monte_carlo_all{idx} = gain_monte_carlo;
     H_all_all{idx}      = H_all;
     y_all_all{idx}      = y_all;
