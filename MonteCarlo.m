@@ -45,20 +45,18 @@ power_envelope_min = Inf(1, num_points);
 time_envelope_max = -Inf(1, num_points);
 time_envelope_min = Inf(1, num_points);
 
-% Helper function for uniform distribution in [-1,1]
-generate_uniform_noise = @(n) 2*rand(1,n) - 1;
-
 % Main Monte Carlo loop
 for run_idx = 1:num_monte_carlo
     % Generate perturbed parameters
     perturbed_reflectivity = nominal_reflectivity(1:system_order) .* ...
-        (1 + reflectivity_tolerance * generate_uniform_noise(system_order));
-    
+        (1 + reflectivity_tolerance * randn(1, system_order));
+
     perturbed_loss = nominal_loss(1:system_order) .* ...
-        (1 - loss_tolerance * rand(1, system_order));
-    
+        (1 - loss_tolerance * abs(randn(1, system_order)));
+
     perturbed_effective_index = effective_index * ...
-        (1 + detector_tolerance * generate_uniform_noise(1));
+        (1 + detector_tolerance * randn);
+
     
     % Build perturbed transfer function
     transfer_function = ones(1, num_points);

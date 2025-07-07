@@ -6,8 +6,8 @@ close all; clear; clc;
 order    = 1;                  % 1, 2, or 3
 k        = [0.5, 0.3, 0.2];    % [ns^-1] per stage
 A        = 1e9;                % ns → s scaling
-r_tolerances = [0]; %, 0.01, 0.03, 0.05]; % ± coupling tolerance (%)
-loss_tolerance = 0;               % ± intrinsic-loss tolerance (%)
+r_tolerances = [0]; % ± coupling tolerance (%)
+loss_tolerance =0.01;               % ± intrinsic-loss tolerance (%)
 detuning_tolerance  = 0;                % detuning (%)
 N_monte_carlo = 1000;               % number of Monte Carlo trials
 R     = [5e-3, 4e-3, 3e-3];    % ring radii [m]
@@ -15,9 +15,9 @@ neff  = 1.5;                   % effective index
 
 %% ---------------- Input signal -------------------
 C        = 40;                  % step amplitude
-x_fun = @(t) C * (t > 0);      % unit-step of amplitude C at t=0
-f0 = 10e9;                     % sine frequency [Hz]
-%x_fun = @(t) C * sin(2*pi*f0*t);
+%x_fun = @(t) C * (t > 0);      % unit-step of amplitude C at t=0
+f0 = 2.5e9;                     % sine frequency [Hz]
+x_fun = @(t) C * sin(2*pi*f0*t);
 
 %% ---------------- Static constants ---------
 c     = 3e8;                   % speed of light [m/s]
@@ -247,7 +247,7 @@ ci_half_widths = zeros(length(r_tolerances), 1);
 t_alpha = 0.05;  % 95% confidence level
 
 for idx = 1:length(r_tolerances)
-    % Compute relative error in percentage
+    % ⚠️ Compute relative error in percentage
     rel_err_percent = (gain_monte_carlo_all{idx} - gain_ideal) / gain_ideal * 100;
 
     % Mean Squared Error (in %²)
@@ -258,7 +258,7 @@ for idx = 1:length(r_tolerances)
 
     % Standard error of the squared relative error
     N = length(rel_err_percent);
-    sem = std(rel_err_percent.^2) / sqrt(N);
+    sem = std(sqrt(rel_err_percent.^2)) / sqrt(N);
 
     % t-value for confidence interval
     tval = tinv(1 - t_alpha/2, N - 1);
@@ -273,7 +273,7 @@ errorbar(r_tolerances *100, rmsd, ci_half_widths, 'o-', ...
 
 xlabel('Coupling Tolerance (%)');
 ylabel('Root Mean Square Error (%)');
-title('Mean Square Error vs. Coupling Tolerance');
+title('Root Mean Square Error vs. Coupling Tolerance');
 grid on;
 
 %% ---------------- helper function -----------------------------------
@@ -306,4 +306,3 @@ function [f_GHz, power_dB] = normalize_power_db(freq_Hz, H)
     % Convert to power in dB
     power_dB = 10 * log10(H_norm .^ 2);
 end
-
