@@ -1,4 +1,4 @@
-# Photonic Ring Resonator ODE Solver and Monte Carlo Analysis
+# Harnessing Photons: an all-optical high-order ODE solver via cascaded microring resonators
 
 This repository provides MATLAB scripts for simulating high-order ordinary differential equation (ODE) solvers implemented via cascaded microring resonators (MRRs) and performing Monte Carlo analysis to assess performance under parameter variations.
 
@@ -63,7 +63,7 @@ This repository provides MATLAB scripts for simulating high-order ordinary diffe
 
   * Percentile envelopes (5–95%) and median of frequency/time responses
   * 2D density heatmap of time-domain outputs
-  * RMS error vs. coupling tolerance with confidence intervals
+  * RMSE error vs. coupling tolerance with confidence intervals
 
 ## 📜 License
 
